@@ -15,10 +15,13 @@ import ua.chnu.recipes.data.network.createAuthorizedHttpClient
 import ua.chnu.recipes.data.network.createHttpClient
 import ua.chnu.recipes.data.repository.AuthRepositoryImpl
 import ua.chnu.recipes.data.repository.OnboardingRepositoryImpl
+import ua.chnu.recipes.data.repository.RecipesRepositoryImpl
 import ua.chnu.recipes.data.storage.KSafeTokenStorage
 import ua.chnu.recipes.data.storage.TokenStorage
 import ua.chnu.recipes.domain.repository.AuthRepository
 import ua.chnu.recipes.domain.repository.OnboardingRepository
+import ua.chnu.recipes.domain.repository.RecipesRepository
+import ua.chnu.recipes.domain.usecase.GetRecipesPageUseCase
 import ua.chnu.recipes.domain.usecase.IsOnboardingCompletedUseCase
 import ua.chnu.recipes.domain.usecase.IsUserAuthorizedUseCase
 import ua.chnu.recipes.domain.usecase.LoginUseCase
@@ -52,6 +55,7 @@ val appModule = module {
     single { AuthApi(get(PlainClient)) }
     singleOf(::KSafeTokenStorage) bind TokenStorage::class
     singleOf(::OnboardingRepositoryImpl) bind OnboardingRepository::class
+    singleOf(::RecipesRepositoryImpl) bind RecipesRepository::class
     single<AuthRepository> {
         AuthRepositoryImpl(
             api = get(),
@@ -69,6 +73,7 @@ val appModule = module {
     factoryOf(::RefreshTokensUseCase)
     factoryOf(::IsUserAuthorizedUseCase)
     factoryOf(::ObserveAuthStateUseCase)
+    factoryOf(::GetRecipesPageUseCase)
 
     // ViewModels
     viewModelOf(::MainViewModel)
