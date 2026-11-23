@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -32,8 +33,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +42,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import coil3.compose.AsyncImage
 import org.jetbrains.compose.resources.stringResource
 import ua.chnu.recipes.data.Recipe
@@ -64,9 +68,24 @@ fun RecipeListScreen(
     onRecipeClick: (Recipe) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LaunchedEffect(Unit) {
-        if (viewModel.recipes.isEmpty() && !viewModel.loading) viewModel.load()
-    }
+    RecipeListPane(viewModel, selectedId = null, onRecipeClick = onRecipeClick, modifier = modifier)
+}
+
+/**
+ * Header + search + filter chips + the paged list. The list is a [LazyColumn] over [LazyPagingItems]:
+ * the next page is requested by Paging when the user scrolls close to the end.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RecipeListPane(
+    viewModel: RecipesViewModel,
+    selectedId: Int?,
+    onRecipeClick: (Recipe) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val recipes = viewModel.recipes.collectAsLazyPagingItems()
+    val refresh = recipes.loadState.refresh
+    val append = recipes.loadState.append
 
     Column(modifier.fillMaxSize().padding(horizontal = 24.dp)) {
         Spacer(Modifier.height(24.dp))
@@ -117,8 +136,10 @@ fun RecipeListScreen(
         Spacer(Modifier.height(12.dp))
 
         when {
-            viewModel.loading && viewModel.recipes.isEmpty() -> CenteredBox { CircularProgressIndicator() }
-            viewModel.error && viewModel.recipes.isEmpty() -> CenteredBox {
+            // first page is loading
+            recipes.itemCount == 0 && refresh is LoadState.Loading -> CenteredBox { CircularProgressIndicator() }
+            // first page failed
+            recipes.itemCount == 0 && refresh is LoadState.Error -> CenteredBox {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         stringResource(Res.string.load_error),
@@ -126,25 +147,71 @@ fun RecipeListScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(12.dp))
-                    OutlinedButton(onClick = { viewModel.load() }) { Text(stringResource(Res.string.retry)) }
+                    OutlinedButton(onClick = { recipes.retry() }) { Text(stringResource(Res.string.retry)) }
                 }
             }
-            viewModel.recipes.isEmpty() -> CenteredBox {
+            recipes.itemCount == 0 -> CenteredBox {
                 Text(
                     stringResource(Res.string.empty_results),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            else -> LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(bottom = 16.dp),
-            ) {
-                items(viewModel.recipes, key = { it.id }) { recipe ->
-                    RecipeCard(recipe, onClick = { onRecipeClick(recipe) })
+            else -> Column(Modifier.fillMaxSize()) {
+                // refresh() failed, the old items are still shown
+                if (refresh is LoadState.Error) ErrorRow(onRetry = { recipes.retry() })
+                PullToRefreshBox(
+                    isRefreshing = refresh is LoadState.Loading,
+                    onRefresh = { recipes.refresh() },
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = 16.dp),
+                    ) {
+                        items(count = recipes.itemCount, key = recipes.itemKey { it.id }) { index ->
+                            recipes[index]?.let { recipe ->
+                                RecipeCard(
+                                    recipe,
+                                    selected = recipe.id == selectedId,
+                                    onClick = { onRecipeClick(recipe) },
+                                )
+                            }
+                        }
+                        // state of the next page: spinner while loading, message with "Retry" on error
+                        when (append) {
+                            is LoadState.Loading -> item(key = "append-loading") {
+                                Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
+                                }
+                            }
+                            is LoadState.Error -> item(key = "append-error") {
+                                ErrorRow(onRetry = { recipes.retry() })
+                            }
+                            is LoadState.NotLoading -> Unit
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ErrorRow(onRetry: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            stringResource(Res.string.load_error),
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error,
+        )
+        OutlinedButton(onClick = onRetry) { Text(stringResource(Res.string.retry)) }
     }
 }
 
@@ -154,13 +221,16 @@ private fun CenteredBox(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun RecipeCard(recipe: Recipe, onClick: () -> Unit) {
+private fun RecipeCard(recipe: Recipe, selected: Boolean, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        border = BorderStroke(
+            if (selected) 2.dp else 1.dp,
+            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             AsyncImage(
