@@ -27,6 +27,7 @@
     <string name="difficulty_hard">Hard</string>
     <string name="empty_results">No recipes found</string>
     <string name="load_error">Could not load recipes. Check your connection.</string>
+    <string name="select_recipe">Select a recipe to see its details</string>
     <string name="retry">Try again</string>
 
     <!-- Recipe details -->

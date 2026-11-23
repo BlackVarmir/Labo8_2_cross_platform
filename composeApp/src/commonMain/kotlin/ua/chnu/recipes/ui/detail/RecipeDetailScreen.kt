@@ -71,6 +71,7 @@ fun RecipeDetailScreen(
     initial: Recipe?,
     api: RecipesApi,
     onBack: () -> Unit,
+    showBackButton: Boolean = true,
 ) {
     var recipe by remember(recipeId) { mutableStateOf(initial) }
     var failed by remember(recipeId) { mutableStateOf(false) }
@@ -104,16 +105,18 @@ fun RecipeDetailScreen(
             else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         }
 
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier.statusBarsPadding().padding(16.dp).size(44.dp),
-            colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.surface),
-        ) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(Res.string.back),
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
+        if (showBackButton) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.statusBarsPadding().padding(16.dp).size(44.dp),
+                colors = IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.surface),
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(Res.string.back),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+            }
         }
     }
 }

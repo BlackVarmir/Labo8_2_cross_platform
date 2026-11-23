@@ -27,6 +27,7 @@
     <string name="difficulty_hard">Складно</string>
     <string name="empty_results">Рецептів не знайдено</string>
     <string name="load_error">Не вдалося завантажити рецепти. Перевірте підключення.</string>
+    <string name="select_recipe">Оберіть рецепт, щоб побачити деталі</string>
     <string name="retry">Спробувати ще раз</string>
 
     <!-- Recipe details -->

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,6 +34,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -48,6 +50,7 @@ import androidx.paging.compose.itemKey
 import coil3.compose.AsyncImage
 import org.jetbrains.compose.resources.stringResource
 import ua.chnu.recipes.data.Recipe
+import ua.chnu.recipes.data.RecipesApi
 import ua.chnu.recipes.resources.Res
 import ua.chnu.recipes.resources.empty_results
 import ua.chnu.recipes.resources.kcal_short
@@ -57,18 +60,59 @@ import ua.chnu.recipes.resources.recipes_subtitle
 import ua.chnu.recipes.resources.recipes_title
 import ua.chnu.recipes.resources.retry
 import ua.chnu.recipes.resources.search_hint
+import ua.chnu.recipes.resources.select_recipe
 import ua.chnu.recipes.ui.MealFilter
 import ua.chnu.recipes.ui.RecipesViewModel
 import ua.chnu.recipes.ui.difficultyLabel
+import ua.chnu.recipes.ui.adaptive.rememberWindowSize
+import ua.chnu.recipes.ui.detail.RecipeDetailScreen
 import ua.chnu.recipes.ui.label
 
+/**
+ * Recipe list. Layout depends on the window width:
+ *  - compact (phone, portrait): only the list, a click opens the details as a separate screen,
+ *  - medium / expanded (tablet, desktop, phone in landscape): list on the left, details of the
+ *    selected recipe on the right (list-detail layout).
+ */
 @Composable
 fun RecipeListScreen(
     viewModel: RecipesViewModel,
+    api: RecipesApi,
     onRecipeClick: (Recipe) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    RecipeListPane(viewModel, selectedId = null, onRecipeClick = onRecipeClick, modifier = modifier)
+    if (!rememberWindowSize().useTwoPanes) {
+        RecipeListPane(viewModel, selectedId = null, onRecipeClick = onRecipeClick, modifier = modifier)
+        return
+    }
+
+    val selected = viewModel.selectedRecipe
+    Row(modifier.fillMaxSize()) {
+        RecipeListPane(
+            viewModel = viewModel,
+            selectedId = selected?.id,
+            onRecipeClick = viewModel::onRecipeSelected,
+            modifier = Modifier.weight(0.42f),
+        )
+        VerticalDivider(color = MaterialTheme.colorScheme.outline)
+        Box(Modifier.weight(0.58f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+            if (selected == null) {
+                Text(
+                    stringResource(Res.string.select_recipe),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                RecipeDetailScreen(
+                    recipeId = selected.id,
+                    initial = selected,
+                    api = api,
+                    onBack = {},
+                    showBackButton = false,
+                )
+            }
+        }
+    }
 }
 
 /**

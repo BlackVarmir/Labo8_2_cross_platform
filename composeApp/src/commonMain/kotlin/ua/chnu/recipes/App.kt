@@ -161,6 +161,7 @@ private fun AppContent() {
                             MainScaffold(selected = MainTab.Recipes, onSelect = onTabSelected) { padding ->
                                 RecipeListScreen(
                                     viewModel = koinViewModel(),
+                                    api = koinInject(),
                                     onRecipeClick = { backStack.add(RecipeDetailRoute(it)) },
                                     modifier = Modifier.padding(padding),
                                 )
