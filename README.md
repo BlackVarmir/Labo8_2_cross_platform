@@ -69,6 +69,28 @@ Compact (<600dp) / Medium (600-839dp) / Expanded (>=840dp) buckets; it is recalc
 
 Try it on desktop by resizing the window; on Android by rotating the device or using a tablet emulator.
 
+## Lab 8 — paged recipe list (Paging 3)
+
+The home list of recipes is loaded page by page (`androidx.paging:paging-common` + `paging-compose`, `commonMain`).
+
+| Layer | What was added |
+|-------|----------------|
+| API | `RecipesApi.getRecipesPage(query, mealType, limit, skip)`; the response has `total`, so it is known whether there is more data |
+| Repository | `RecipesRepository.getRecipesPage(...)`: a plain `suspend` call returning `Result<RecipesPage>` (items + `nextOffset`, null = last page); no paging types in data/domain |
+| Use case | `GetRecipesPageUseCase`, registered in Koin (`di/AppModule.kt`) |
+| PagingSource | `ui/list/RecipesPagingSource`: key = offset (null = first page), `nextKey = nextOffset`, errors -> `LoadResult.Error`, `getRefreshKey = null` (refresh starts from the first page) |
+| ViewModel | `RecipesViewModel`: `Pager(PagingConfig(pageSize = 10, initialLoadSize = 20, enablePlaceholders = false))`; a new `PagingSource` is created when the search text (debounced) or the meal filter changes; `pager.flow.cachedIn(viewModelScope)` |
+| UI | `collectAsLazyPagingItems()` + `LazyColumn` with `itemKey { it.id }`; first load -> spinner, error -> message + **Retry** (`retry()`), next page -> spinner / error row at the end of the list, pull to refresh -> `refresh()` |
+
+Search by name uses `/recipes/search`, the meal filter uses `/recipes/meal-type/{type}`; when both are set, the repository
+searches and filters the found recipes by meal type (the API cannot do both at once).
+
+**List-detail layout.** Compact width (phone, portrait): the list only, a click opens the details screen.
+Medium / expanded width (tablet, desktop, phone in landscape): the list on the left and the details of the selected recipe
+on the right (`RecipeListScreen`).
+
+Tests: `RecipesPagingTest.kt` (PagingSource keys and errors, repository paging, filter + search) - `./gradlew :composeApp:desktopTest`.
+
 ## Run
 
 * **Desktop:** `./gradlew :composeApp:run`
@@ -81,6 +103,6 @@ Try it on desktop by resizing the window; on Android by rotating the device or u
 ## Libraries
 
 Compose Multiplatform 1.10.3 · Kotlin 2.2.21 · Ktor 3.1 · kotlinx.serialization · Coil 3 ·
-**Kermit 2.0.6** (logging) · **multiplatform-settings 1.3.0** (user settings) · **Navigation 3 1.1.1** · **Koin 4.1.1** · **KSafe 3.0.0** (secure storage) · Ktor Auth (bearer + token refresh).
+**Kermit 2.0.6** (logging) · **multiplatform-settings 1.3.0** (user settings) · **Navigation 3 1.1.1** · **Koin 4.1.1** · **KSafe 3.0.0** (secure storage) · Ktor Auth (bearer + token refresh) · **Paging 3 (3.4.2)**.
 
 Font: [Manrope](https://github.com/sharanda/manrope) (SIL Open Font License, see `FONT_LICENSE_OFL.txt`).
