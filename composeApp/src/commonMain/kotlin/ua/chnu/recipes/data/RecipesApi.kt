@@ -25,6 +25,32 @@ class RecipesApi(private val client: HttpClient) {
         return response.recipes
     }
 
+    /**
+     * One page of recipes: [limit] items starting after [skip] items. The response has `total`,
+     * so the caller can tell whether there is more data.
+     *  - not blank [query]: search by name,
+     *  - [mealType] set: only recipes of this meal type,
+     *  - otherwise: all recipes.
+     */
+    suspend fun getRecipesPage(query: String, mealType: String?, limit: Int, skip: Int): RecipesResponse {
+        log.d { "getRecipesPage(query='$query', mealType=$mealType, limit=$limit, skip=$skip)" }
+        return when {
+            query.isNotBlank() -> client.get("recipes/search") {
+                parameter("q", query.trim())
+                parameter("limit", limit)
+                parameter("skip", skip)
+            }
+            mealType != null -> client.get("recipes/meal-type/$mealType") {
+                parameter("limit", limit)
+                parameter("skip", skip)
+            }
+            else -> client.get("recipes") {
+                parameter("limit", limit)
+                parameter("skip", skip)
+            }
+        }.body()
+    }
+
     suspend fun getRecipe(id: Int): Recipe {
         log.d { "getRecipe($id)" }
         return client.get("recipes/$id").body()
