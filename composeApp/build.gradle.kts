@@ -79,6 +79,10 @@ kotlin {
 
             // Lab 7 library: WindowSizeClass for adaptive layouts
             implementation(libs.compose.adaptive)
+
+            // Lab 8 libraries: Paging 3 (paging-common for Pager/PagingSource, paging-compose for LazyPagingItems)
+            implementation(libs.paging.common)
+            implementation(libs.paging.compose)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
